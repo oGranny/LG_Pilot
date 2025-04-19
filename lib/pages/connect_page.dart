@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:lg_pilot/utils/colors.dart';
 import 'package:lg_pilot/widgets/appbar.dart';
 import 'package:lg_pilot/widgets/button.dart';
-import 'package:lg_pilot/widgets/drawer.dart';
 import 'package:lg_pilot/widgets/input_bar.dart';
 
 class ConnectPage extends StatelessWidget {

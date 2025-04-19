@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lg_pilot/pages/api_key.dart';
 import 'package:lg_pilot/pages/connect_page.dart';
 import 'package:lg_pilot/pages/tools_page.dart';
 import 'package:lg_pilot/utils/colors.dart';
@@ -43,7 +44,9 @@ class DrawerPilot extends StatelessWidget {
             leading: const Icon(Icons.code_outlined, color: Colors.white),
             title: const Text('API Key', style: TextStyle(color: Colors.white)),
             onTap: () {
-              // Handle about tap
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (context) => ApiKeyPage()));
             },
           ),
           ListTile(

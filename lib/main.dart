@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:lg_pilot/Services/lg_service.dart';
 import 'package:lg_pilot/pages/main_screen.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [Provider<LgService>(create: (_) => LgService())],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

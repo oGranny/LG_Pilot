@@ -1,9 +1,23 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:lg_pilot/Services/kml_service.dart';
+import 'package:lg_pilot/Services/lg_service.dart';
+import 'package:lg_pilot/entities/coordinate_entity.dart';
+import 'package:lg_pilot/entities/message_entity.dart';
+import 'package:lg_pilot/entities/model_entity.dart';
 import 'package:lg_pilot/utils/colors.dart';
+import 'package:lg_pilot/utils/prompt.dart';
 import 'package:lg_pilot/widgets/appbar.dart';
+import 'package:lg_pilot/widgets/bounce_progress_indicator.dart';
 import 'package:lg_pilot/widgets/drawer.dart';
 import 'package:lg_pilot/widgets/input_bar.dart';
 import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,6 +27,131 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  List<MessageEntity> response = [];
+  TextEditingController controller = TextEditingController();
+  bool isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    loadApiKey();
+  }
+
+  String? apiKey;
+
+  Future<void> loadApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      apiKey = prefs.getString('api_key');
+    });
+  }
+
+  Future<Map<String, dynamic>> fetchResponse(String text) async {
+    final url = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey',
+    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt + text},
+              ],
+            },
+          ],
+        }),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Error: ${response.statusCode}');
+        return {
+          "error": "Failed to load data, status code: ${response.statusCode}",
+        };
+      }
+    } catch (e) {
+      print('Error: $e');
+      return {"error": e};
+    }
+  }
+
+  void onSubmit() async {
+    String controllerData = controller.text.trim();
+    MessageEntity msg = MessageEntity(
+      rawMessage: {'request': controllerData},
+      response: controllerData,
+      isUserMessage: true,
+    );
+    setState(() {
+      response.add(msg);
+      controller.clear();
+      isLoading = true;
+    });
+
+    Map<String, dynamic> data = await fetchResponse(controllerData);
+    if (data.containsKey('error')) {
+      msg = MessageEntity(
+        rawMessage: data,
+        response: data['error'],
+        isUserMessage: false,
+      );
+    } else {
+      Map<String, dynamic> rawData = jsonDecode(
+        data['candidates'][0]['content']['parts'][0]['text']
+            .split('```json')[1]
+            .split('```')[0],
+      );
+      msg = MessageEntity(
+        rawMessage: rawData,
+        response: rawData['response'],
+        isUserMessage: false,
+      );
+    }
+    setState(() {
+      response.add(msg);
+      isLoading = false;
+    });
+
+    if (msg.rawMessage['from'] != null && msg.rawMessage['to'] != null) {
+      Coordinate from = Coordinate(
+        latitude: msg.rawMessage['from']['lat'],
+        longitude: msg.rawMessage['from']['lon'],
+        altitude: (msg.rawMessage['from']['alt'] as num?)?.toDouble(),
+      );
+      Coordinate to = Coordinate(
+        latitude: msg.rawMessage['to']['lat'],
+        longitude: msg.rawMessage['to']['lon'],
+        altitude: (msg.rawMessage['to']['alt'] as num?)?.toDouble(),
+      );
+      KmlService kmlService = KmlService(
+        end: to,
+        start: from,
+        model: Model(
+          href: 'model.dae',
+          scaleX: 1000.0,
+          scaleY: 1000.0,
+          scaleZ: 1000.0,
+        ),
+      );
+      String kmlContent = kmlService.generateKml();
+      print(kmlContent);
+      LgService lgService = Provider.of<LgService>(context, listen: false);
+      String content = await rootBundle.loadString('assets/model.dae');
+      await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
+
+      Provider.of<LgService>(
+        context,
+        listen: false,
+      ).sendFile('/var/www/html/pilot.kml', (utf8.encode(kmlContent)));
+      Provider.of<LgService>(
+        context,
+        listen: false,
+      ).execCommand("echo 'http://lg1:81/pilot.kml' > /var/www/html/kmls.txt");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,16 +160,81 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: ThemeColors.backgroundColor,
       body: Column(
         children: [
-          Expanded(child: PlaceholderMainPage()),
+          Expanded(
+            child:
+                response.isEmpty
+                    ? PlaceholderMainPage()
+                    : ChatListView(response: response, isLoading: isLoading),
+          ),
           InputBar(
+            controller: controller,
             hintText: "Ask Pilot",
-            onIconPressed: () => {},
+            onIconPressed: onSubmit,
             showIcon: true,
-            icon: Icons.mic_none_outlined,
+            icon: Icons.send_rounded,
           ),
           SizedBox(height: 25),
         ],
       ),
+    );
+  }
+}
+
+class ChatListView extends StatelessWidget {
+  const ChatListView({
+    super.key,
+    required this.response,
+    required this.isLoading,
+  });
+
+  final List<MessageEntity> response;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: response.length + (isLoading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (isLoading && index == response.length) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: SpinKitThreeBounce(
+                  size: 20,
+                  color: ThemeColors.inverseBackgroundColor,
+                ),
+              ),
+            ],
+          );
+        }
+        final message = response[index];
+        return Align(
+          alignment:
+              message.isUserMessage
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+          child: Container(
+            width:
+                MediaQuery.of(context).size.width *
+                (message.isUserMessage ? 0.75 : .8),
+            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color:
+                  message.isUserMessage
+                      ? ThemeColors.primaryColor
+                      : ThemeColors.backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              message.response,
+              style: TextStyle(color: ThemeColors.primaryTextColor),
+            ),
+          ),
+        );
+      },
     );
   }
 }
