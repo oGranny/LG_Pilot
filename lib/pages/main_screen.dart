@@ -216,9 +216,11 @@ class ChatListView extends StatelessWidget {
                   ? Alignment.centerRight
                   : Alignment.centerLeft,
           child: Container(
-            width:
-                MediaQuery.of(context).size.width *
-                (message.isUserMessage ? 0.75 : .8),
+            constraints: BoxConstraints(
+              maxWidth:
+                  MediaQuery.of(context).size.width *
+                  (message.isUserMessage ? 0.75 : 0.8),
+            ),
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lg_pilot/pages/qr_scan.dart';
 import 'package:lg_pilot/utils/colors.dart';
 import 'package:lg_pilot/widgets/appbar.dart';
 import 'package:lg_pilot/widgets/button.dart';
@@ -16,7 +17,14 @@ class ConnectPage extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            PilotButton(onPressed: () {}, text: "Scan Using QR"),
+            PilotButton(
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (context) => QRPage()));
+              },
+              text: "Scan Using QR",
+            ),
             ChoiceDivider(),
             FormInput(hintText: "192.168.56.121", labelText: "Host"),
             FormInput(
