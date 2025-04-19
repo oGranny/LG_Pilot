@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:lg_pilot/Services/kml_service.dart';
 import 'package:lg_pilot/Services/lg_service.dart';
@@ -78,6 +79,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void onSubmit() async {
+    LgService lgService = Provider.of<LgService>(context, listen: false);
+    // FlutterTts flutterTts = FlutterTts();
+    // await flutterTts.setPitch(0.1);
+
     String controllerData = controller.text.trim();
     MessageEntity msg = MessageEntity(
       rawMessage: {'request': controllerData},
@@ -109,6 +114,7 @@ class _HomePageState extends State<HomePage> {
         isUserMessage: false,
       );
     }
+    print(msg.rawMessage);
     setState(() {
       response.add(msg);
       isLoading = false;
@@ -120,35 +126,54 @@ class _HomePageState extends State<HomePage> {
         longitude: msg.rawMessage['from']['lon'],
         altitude: (msg.rawMessage['from']['alt'] as num?)?.toDouble(),
       );
+
       Coordinate to = Coordinate(
         latitude: msg.rawMessage['to']['lat'],
         longitude: msg.rawMessage['to']['lon'],
         altitude: (msg.rawMessage['to']['alt'] as num?)?.toDouble(),
       );
+
       KmlService kmlService = KmlService(
         end: to,
         start: from,
         model: Model(
           href: 'model.dae',
-          scaleX: 1000.0,
-          scaleY: 1000.0,
-          scaleZ: 1000.0,
+          scaleX: 10000.0,
+          scaleY: 10000.0,
+          scaleZ: 10000.0,
         ),
       );
       String kmlContent = kmlService.generateKml();
-      print(kmlContent);
-      LgService lgService = Provider.of<LgService>(context, listen: false);
-      String content = await rootBundle.loadString('assets/model.dae');
-      await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
+      // print(kmlContent);
+      // String content = await rootBundle.loadString('assets/model.dae');
+      // await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
 
-      Provider.of<LgService>(
-        context,
-        listen: false,
-      ).sendFile('/var/www/html/pilot.kml', (utf8.encode(kmlContent)));
-      Provider.of<LgService>(
-        context,
-        listen: false,
-      ).execCommand("echo 'http://lg1:81/pilot.kml' > /var/www/html/kmls.txt");
+      await lgService.sendFile(
+        '/var/www/html/pilot.kml',
+        (utf8.encode(kmlContent)),
+      );
+      print('KML file sent to LG server.');
+      // await flutterTts.speak(
+      //   "flying from ${msg.rawMessage['from']['city']} to ${msg.rawMessage['to']['city']}",
+      // );
+      await lgService.clearKml();
+
+      print('KML file cleared.');
+
+      await lgService.execCommand(
+        'echo "flytoview=<LookAt><longitude>${from.longitude}</longitude><latitude>${from.latitude}</latitude><range>${90200.297285}</range><tilt>${0}</tilt><heading>${0}</heading><gx:altitudeMode>relativeToGround</gx:altitudeMode></LookAt>" > /tmp/query.txt',
+      );
+      await Future.delayed(Duration(seconds: 7));
+      await lgService.execCommand(
+        'echo "flytoview=<LookAt><longitude>${to.longitude}</longitude><latitude>${to.latitude}</latitude><range>${90200.297285}</range><tilt>${0}</tilt><heading>${0}</heading><gx:altitudeMode>relativeToGround</gx:altitudeMode></LookAt>" > /tmp/query.txt',
+      );
+      await Future.delayed(Duration(seconds: 7));
+      print('LookAt command executed.');
+      await lgService.execCommand(
+        'echo "exittour=true" > /tmp/query.txt && > /var/www/html/kmls.txt && echo "http://lg1:81/pilot.kml" > /var/www/html/kmls.txt',
+      );
+      await lgService.execCommand('echo "playtour=Flight" > /tmp/query.txt');
+      await lgService.execCommand("");
     }
   }
 

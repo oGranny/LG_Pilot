@@ -1,32 +1,67 @@
+import 'dart:math' as Math;
+
 import 'package:lg_pilot/entities/coordinate_entity.dart';
 import 'package:lg_pilot/entities/model_entity.dart';
 
 class KmlService {
   final Coordinate start;
   final Coordinate end;
-  int? numberOfPoints = 1000;
   Model model = Model(
     href: 'model.dae',
-    scaleX: 1000.0,
-    scaleY: 1000.0,
-    scaleZ: 1000.0,
+    scaleX: 100000.0,
+    scaleY: 100000.0,
+    scaleZ: 100000.0,
   );
 
   late List<Coordinate> coordinates;
-
+  late double timeInt;
   KmlService({required this.start, required this.end, required this.model}) {
-    coordinates = Coordinate.interpolate(start, end, 1000);
+    timeInt = start.timeInterval;
+    coordinates = Coordinate.interpolate(start, end);
   }
 
-  String generateCoordinateTags() {
+  double calculateAlt() {
+    // double dist = Math.sqrt(
+    //   Math.pow(end.latitude - start.latitude, 2) +
+    //       Math.pow(end.longitude - start.longitude, 2) +
+    //       Math.pow((end.altitude ?? 0) - (start.altitude ?? 0), 2),
+    // );
+    // return dist * 1e4;
+    return 2 * 1e4;
+  }
+
+  double calculateRange() {
+    // double dist = Math.sqrt(
+    //   Math.pow(end.latitude - start.latitude, 2) +
+    //       Math.pow(end.longitude - start.longitude, 2) +
+    //       Math.pow((end.altitude ?? 0) - (start.altitude ?? 0), 2),
+    // );
+    // return dist * 1e4;
+    return 5 * 1e5;
+  }
+
+  String generateCoordinateTags(double? altitude) {
     return coordinates
         .map((coordinate) {
-          return '${coordinate.longitude},${coordinate.latitude},${coordinate.altitude}';
+          return '${coordinate.longitude},${coordinate.latitude},${altitude ?? coordinate.altitude}';
         })
         .join(' ');
   }
 
+  double calculateHeading(Coordinate start, Coordinate end) {
+    double deltaLongitude = end.longitude - start.longitude;
+    double deltaLatitude = end.latitude - start.latitude;
+    double heading =
+        Math.atan2(deltaLongitude, deltaLatitude) * (180 / Math.pi);
+    return (heading + 180) % 360; // Normalize to 0-360 degrees
+  }
+
   String generateKmlHead() {
+    double alt = calculateAlt();
+    double range = calculateRange();
+    print('range: $range');
+    print('alt: $alt');
+    print(model.scaleX);
     String head = '''
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
@@ -106,8 +141,8 @@ class KmlService {
       <LookAt>
           <longitude>${coordinates[0].longitude}</longitude>
           <latitude>${coordinates[0].latitude}</latitude>
-          <altitude>${coordinates[0].altitude}</altitude>
-        <range>${coordinates[0].range}</range>
+          <altitude>$alt</altitude>
+        <range>$range</range>
         <tilt>60</tilt>
         <heading>0</heading>
         <gx:altitudeMode>relativeToGround</gx:altitudeMode>
@@ -118,10 +153,10 @@ class KmlService {
         <Location>
           <longitude>${coordinates[0].longitude}</longitude>
           <latitude>${coordinates[0].latitude}</latitude>
-          <altitude>${coordinates[0].altitude}</altitude>
+          <altitude>$alt</altitude>
         </Location>
         <Orientation>
-          <heading>0</heading>
+            <heading>${calculateHeading(coordinates[0], coordinates[1])}</heading>
           <tilt>0</tilt>
           <roll>0</roll>
         </Orientation>
@@ -147,7 +182,7 @@ class KmlService {
         <outerBoundaryIs>
           <LinearRing>
             <coordinates>
-            ${generateCoordinateTags()}
+            ${generateCoordinateTags(alt)}
             </coordinates>
           </LinearRing>
         </outerBoundaryIs>
@@ -161,25 +196,28 @@ class KmlService {
   }
 
   String generateKMLTail() {
+    double alt = calculateAlt();
+    double range = calculateRange();
+
     String tail = "";
     for (Coordinate cord in coordinates) {
       tail += '''
 <gx:FlyTo>
-<gx:duration>0.4</gx:duration>
+<gx:duration>$timeInt</gx:duration>
 <gx:flyToMode>smooth</gx:flyToMode>
 <LookAt>
   <longitude>${cord.longitude}</longitude>
   <latitude>${cord.latitude}</latitude>
-  <altitude>${cord.altitude}</altitude>
+  <altitude>$alt</altitude>
   <heading>1.0</heading>
   <tilt>60</tilt>
-  <range>${1000000}</range>
+  <range>$range</range>
   <gx:altitudeMode>relativeToGround</gx:altitudeMode>
 </LookAt>
 </gx:FlyTo>
 
 <gx:AnimatedUpdate>
-  <gx:duration>0.7</gx:duration>
+  <gx:duration>$timeInt</gx:duration>
   <Update>
     <targetHref/>
     <Change>
@@ -188,8 +226,14 @@ class KmlService {
           <Location>
             <longitude>${cord.longitude}</longitude>
             <latitude>${cord.latitude}</latitude>
-            <altitude>${cord.altitude}</altitude>
+            <altitude>$alt</altitude>
           </Location>
+          <Orientation>
+            <heading>${coordinates.indexOf(cord) < coordinates.length - 1 ? calculateHeading(cord, coordinates[coordinates.indexOf(cord) + 1]) : calculateHeading(coordinates[coordinates.indexOf(cord) - 1], cord)}</heading>
+            <tilt>0</tilt>
+            <roll>0</roll>
+          </Orientation>
+
         </Model>
       </Placemark>
     </Change>
