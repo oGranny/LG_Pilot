@@ -86,30 +86,7 @@ class KmlService {
         </Icon>
         <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction" />
       </IconStyle>
-      <BalloonStyle>
-        <bgColor>ffffffff</bgColor>
-        <text><![CDATA[
-              <b><font size="+2">TRANSIT 5B-5 <font color="#5D5D5D">(ALIVE)</font></font></b>
-    <br/><br/>
-    <img height="200" src="https://db-satnogs.freetls.fastly.net/media/satellites/transit-o__1.jpg"><br/><br/>
-    <b>NORAD ID:</b> 965
-    <br/>
-    <b>Alternames:</b> OPS 6582
-    <br/>
-    <b>Countries:</b> US
-    <br/>
-    <b>Operator:</b> None
-    <br/>
-    <b>Transmitters:</b> 6
-    <br/>
-    <b>Launched:</b> December 13, 1964 12:00 AM
-    <br/>
-    <b>Deployed:</b> Never
-    <br/>
-    <b>Decayed:</b> Never
-  
-        ]]></text>
-      </BalloonStyle>
+
     </Style>
     <Style id="line-SCHX-0895-2361-9925-0309">
       <LineStyle>
