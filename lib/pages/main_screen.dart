@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as Math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:lg_pilot/Services/kml_service.dart';
@@ -154,8 +155,8 @@ class _HomePageState extends State<HomePage> {
       );
       String kmlContent = kmlService.generateKml();
       // print(kmlContent);
-      // String content = await rootBundle.loadString('assets/model.dae');
-      // await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
+      String content = await rootBundle.loadString('assets/model.dae');
+      await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
       flutterTts.setLanguage('en-US');
       await flutterTts.setSpeechRate(0.5);
       await flutterTts.speak(
@@ -190,7 +191,7 @@ class _HomePageState extends State<HomePage> {
     } else if (msg.rawMessage['location'] != null) {
       flutterTts.setLanguage('en-US');
       flutterTts.setSpeechRate(0.5);
-      flutterTts.speak("orbiting around ${msg.rawMessage['location']['city']}");
+      flutterTts.speak("Showing ${msg.rawMessage['location']['city']}");
       Coordinate location = Coordinate(
         latitude: msg.rawMessage['location']['lat'],
         longitude: msg.rawMessage['location']['lon'],
@@ -204,7 +205,7 @@ class _HomePageState extends State<HomePage> {
         (utf8.encode(kmlContent)),
       );
       await lgService.execCommand(
-        'echo "http://lg1:81/Orbit.kml" >> /var/www/html/kmls.txt',
+        'echo "http://lg1:81/Orbit.kml" > /var/www/html/kmls.txt',
       );
       await lgService.execCommand('echo "playtour=Orbit" > /tmp/query.txt');
       print('Orbit file sent to LG server.');
