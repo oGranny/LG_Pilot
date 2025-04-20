@@ -68,6 +68,12 @@ class _HomePageState extends State<HomePage> {
         return jsonDecode(response.body);
       } else {
         print('Error: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
         return {
           "error": "Failed to load data, status code: ${response.statusCode}",
         };
