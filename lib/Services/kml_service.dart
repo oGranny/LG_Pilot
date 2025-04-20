@@ -173,6 +173,13 @@ class KmlService {
   }
 
   String generateKMLTail() {
+    double dist = Math.sqrt(
+      Math.pow(end.latitude - start.latitude, 2) +
+          Math.pow(end.longitude - start.longitude, 2) +
+          Math.pow((end.altitude ?? 0) - (start.altitude ?? 0), 2),
+    );
+    print('dist: $dist');
+    print('timeInt: ${start.totalTime}');
     double alt = calculateAlt();
     double range = calculateRange();
 
@@ -220,6 +227,41 @@ class KmlService {
         ''';
     }
     return tail;
+  }
+
+  static String generateOrbit(Coordinate point) {
+    String orbit = '''
+<?xml version="1.0" encoding="UTF-8"?>
+  <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+    <gx:Tour>
+      <name>Orbit</name>
+      <gx:Playlist> 
+''';
+
+    for (int i = 0; i <= 360; i += 10) {
+      orbit += '''
+        <gx:FlyTo>
+          <gx:duration>1.2</gx:duration>
+          <gx:flyToMode>smooth</gx:flyToMode>
+          <LookAt>
+              <longitude>${point.longitude}</longitude>
+              <latitude>${point.latitude}</latitude>
+              <heading>$i</heading>
+              <tilt>60</tilt>
+              <range>${point.range}</range>
+              <gx:fovy>60</gx:fovy>
+              <altitude>${point.altitude}</altitude>
+              <gx:altitudeMode>relativeToGround</gx:altitudeMode>
+          </LookAt>
+        </gx:FlyTo>
+''';
+    }
+    orbit += '''
+    </gx:Playlist>
+  </gx:Tour>
+</kml>
+''';
+    return orbit;
   }
 
   String generateKml() {

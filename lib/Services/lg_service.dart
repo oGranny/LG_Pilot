@@ -10,7 +10,12 @@ class LgService {
 
   Future<bool> checkConnection() async {
     try {
-      final socket = await SSHSocket.connect(host, port);
+      print('Connecting to $host:$port...');
+      final socket = await SSHSocket.connect(
+        host,
+        port,
+        timeout: Duration(seconds: 5),
+      );
       SSHClient(socket, username: username, onPasswordRequest: () => password);
       print('Connected to $host:$port');
       return true;

@@ -20,15 +20,35 @@ class ApiKeyPage extends StatelessWidget {
       backgroundColor: ThemeColors.backgroundColor,
       body: Column(
         children: [
-          SizedBox(height: 20),
-          InputBar(
-            showIcon: true,
-            hintText: 'Gemini API Key',
-            onIconPressed: () {
-              launchUrl(Uri.parse("https://aistudio.google.com/apikey"));
-            },
-            icon: Icons.info_outline,
-            controller: controller,
+          // SizedBox(height: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 25.0,
+                    vertical: 10.0,
+                  ),
+                  child: Text(
+                    'Gemini API Key',
+                    style: TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                InputBar(
+                  showIcon: true,
+                  hintText: 'Gemini API Key',
+                  onIconPressed: () {
+                    launchUrl(Uri.parse("https://aistudio.google.com/apikey"));
+                  },
+                  icon: Icons.info_outline,
+                  controller: controller,
+                ),
+              ],
+            ),
           ),
           SizedBox(height: 20),
           PilotButton(
@@ -47,6 +67,7 @@ class ApiKeyPage extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
+          SizedBox(height: 20),
         ],
       ),
     );

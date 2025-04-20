@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:math' as Math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:lg_pilot/Services/kml_service.dart';
@@ -80,7 +79,7 @@ class _HomePageState extends State<HomePage> {
 
   void onSubmit() async {
     LgService lgService = Provider.of<LgService>(context, listen: false);
-    // FlutterTts flutterTts = FlutterTts();
+    FlutterTts flutterTts = FlutterTts();
     // await flutterTts.setPitch(0.1);
 
     String controllerData = controller.text.trim();
@@ -121,10 +120,21 @@ class _HomePageState extends State<HomePage> {
     });
 
     if (msg.rawMessage['from'] != null && msg.rawMessage['to'] != null) {
+      double dist = Math.sqrt(
+        Math.pow(
+              msg.rawMessage['from']['lat'] - msg.rawMessage['to']['lat'],
+              2,
+            ) +
+            Math.pow(
+              msg.rawMessage['from']['lon'] - msg.rawMessage['to']['lon'],
+              2,
+            ),
+      );
       Coordinate from = Coordinate(
         latitude: msg.rawMessage['from']['lat'],
         longitude: msg.rawMessage['from']['lon'],
         altitude: (msg.rawMessage['from']['alt'] as num?)?.toDouble(),
+        // timeInterval: 100,
       );
 
       Coordinate to = Coordinate(
@@ -132,7 +142,6 @@ class _HomePageState extends State<HomePage> {
         longitude: msg.rawMessage['to']['lon'],
         altitude: (msg.rawMessage['to']['alt'] as num?)?.toDouble(),
       );
-
       KmlService kmlService = KmlService(
         end: to,
         start: from,
@@ -147,7 +156,11 @@ class _HomePageState extends State<HomePage> {
       // print(kmlContent);
       // String content = await rootBundle.loadString('assets/model.dae');
       // await lgService.sendFile('/var/www/html/model.dae', utf8.encode(content));
-
+      flutterTts.setLanguage('en-US');
+      await flutterTts.setSpeechRate(0.5);
+      await flutterTts.speak(
+        "Ladies and gentlemen. Welcome aboard this flight from ${msg.rawMessage['from']['city']} to ${msg.rawMessage['to']['city']}. We’re just about ready for departure, so please sit back, relax, and enjoy the flight.",
+      );
       await lgService.sendFile(
         '/var/www/html/pilot.kml',
         (utf8.encode(kmlContent)),
@@ -174,6 +187,27 @@ class _HomePageState extends State<HomePage> {
       );
       await lgService.execCommand('echo "playtour=Flight" > /tmp/query.txt');
       await lgService.execCommand("");
+    } else if (msg.rawMessage['location'] != null) {
+      flutterTts.setLanguage('en-US');
+      flutterTts.setSpeechRate(0.5);
+      flutterTts.speak("orbiting around ${msg.rawMessage['location']['city']}");
+      Coordinate location = Coordinate(
+        latitude: msg.rawMessage['location']['lat'],
+        longitude: msg.rawMessage['location']['lon'],
+        altitude: (msg.rawMessage['location']['alt'] as num?)?.toDouble(),
+        range: data['range'] ?? 100000.0,
+      );
+      await lgService.clearKml();
+      String kmlContent = KmlService.generateOrbit(location);
+      await lgService.sendFile(
+        '/var/www/html/Orbit.kml',
+        (utf8.encode(kmlContent)),
+      );
+      await lgService.execCommand(
+        'echo "http://lg1:81/Orbit.kml" >> /var/www/html/kmls.txt',
+      );
+      await lgService.execCommand('echo "playtour=Orbit" > /tmp/query.txt');
+      print('Orbit file sent to LG server.');
     }
   }
 

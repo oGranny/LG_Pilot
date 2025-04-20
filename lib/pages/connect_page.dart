@@ -1,15 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:lg_pilot/Services/lg_service.dart';
 import 'package:lg_pilot/pages/qr_scan.dart';
 import 'package:lg_pilot/utils/colors.dart';
 import 'package:lg_pilot/widgets/appbar.dart';
 import 'package:lg_pilot/widgets/button.dart';
 import 'package:lg_pilot/widgets/input_bar.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ConnectPage extends StatelessWidget {
+class ConnectPage extends StatefulWidget {
   const ConnectPage({super.key});
 
   @override
+  State<ConnectPage> createState() => _ConnectPageState();
+}
+
+class _ConnectPageState extends State<ConnectPage> {
+  TextEditingController hostController = TextEditingController();
+  TextEditingController portController = TextEditingController();
+  TextEditingController usernameController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  TextEditingController screenCountController = TextEditingController();
+
+  Future<void> _loadSavedData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      hostController.text = prefs.getString('host') ?? '';
+      portController.text = prefs.getInt('port')?.toString() ?? '';
+      usernameController.text = prefs.getString('username') ?? '';
+      passwordController.text = prefs.getString('password') ?? '';
+      screenCountController.text = prefs.getInt('rigs')?.toString() ?? '';
+    });
+  }
+
+  @override
+  void initState() {
+    _loadSavedData();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    hostController.dispose();
+    portController.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+    screenCountController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lgService = Provider.of<LgService>(context);
+
     return Scaffold(
       backgroundColor: ThemeColors.backgroundColor,
       appBar: AppBarPilot(title: "Connect"),
@@ -26,23 +69,77 @@ class ConnectPage extends StatelessWidget {
               text: "Scan Using QR",
             ),
             ChoiceDivider(),
-            FormInput(hintText: "192.168.56.121", labelText: "Host"),
+            FormInput(
+              hintText: "192.168.56.121",
+              labelText: "Host",
+              controller: hostController,
+            ),
             FormInput(
               hintText: "22",
               labelText: "Port",
               textInputType: TextInputType.number,
+              controller: portController,
             ),
-            FormInput(hintText: "lg", labelText: "Username"),
-            FormInput(hintText: "lg", labelText: "Password"),
+            FormInput(
+              hintText: "lg",
+              labelText: "Username",
+              controller: usernameController,
+            ),
+            FormInput(
+              hintText: "lg",
+              labelText: "Password",
+              controller: passwordController,
+            ),
             FormInput(
               hintText: "3",
               labelText: "Number of Screens",
               textInputType: TextInputType.number,
+              controller: screenCountController,
             ),
             SizedBox(height: 20),
             PilotButton(
               text: "CONNECT",
-              onPressed: () {},
+              onPressed: () async {
+                print(hostController.text);
+                final SharedPreferences prefs =
+                    await SharedPreferences.getInstance();
+                try {
+                  lgService.host = hostController.text;
+                  lgService.port =
+                      portController.text.isNotEmpty
+                          ? int.parse(portController.text)
+                          : 22;
+                  lgService.username = usernameController.text;
+                  lgService.password = passwordController.text;
+                  lgService.rigs =
+                      int.tryParse(screenCountController.text) ?? 0;
+
+                  prefs.setString('host', lgService.host);
+                  prefs.setInt('port', lgService.port);
+                  prefs.setString('username', lgService.username);
+                  prefs.setString('password', lgService.password);
+                  prefs.setInt('rigs', lgService.rigs);
+
+                  bool res = await lgService.checkConnection();
+                  print(res);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: ThemeColors.primaryColor,
+                      content: Text(
+                        res ? 'Connected' : 'Failed to connect',
+                        style: TextStyle(color: ThemeColors.primaryTextColor),
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  print(e.toString());
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              },
               fillColor: ThemeColors.inverseBackgroundColor,
               // textColor: ThemeColors.inverseTextColor,
               textDecoration: TextStyle(
@@ -59,13 +156,13 @@ class ConnectPage extends StatelessWidget {
 }
 
 class FormInput extends StatelessWidget {
-  final String hintText;
+  final String? hintText;
   final String labelText;
   final TextEditingController? controller;
   final TextInputType? textInputType;
   const FormInput({
     super.key,
-    required this.hintText,
+    this.hintText,
     required this.labelText,
     this.controller,
     this.textInputType,
@@ -84,7 +181,8 @@ class FormInput extends StatelessWidget {
           ),
         ),
         InputBar(
-          hintText: hintText,
+          controller: controller,
+          // hintText: hintText,
           showIcon: false,
           textInputType: textInputType,
         ),

@@ -3,7 +3,7 @@ import 'package:lg_pilot/utils/colors.dart';
 
 class InputBar extends StatelessWidget {
   final bool showIcon;
-  final String hintText;
+  final String? hintText;
   final TextEditingController? controller;
   final Function(String)? onChanged;
   final Function()? onIconPressed;
@@ -12,7 +12,7 @@ class InputBar extends StatelessWidget {
   const InputBar({
     super.key,
     required this.showIcon,
-    required this.hintText,
+    this.hintText,
     this.controller,
     this.onChanged,
     this.onIconPressed,

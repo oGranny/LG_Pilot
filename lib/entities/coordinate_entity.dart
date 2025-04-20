@@ -14,7 +14,7 @@ class Coordinate {
     this.altitude,
     required this.latitude,
     required this.longitude,
-  }) : totalTime = totalTime ?? 15,
+  }) : totalTime = totalTime ?? 30,
        timeInterval = timeInterval ?? .4 {
     numberOfCoordinates = this.totalTime ~/ this.timeInterval;
   }
